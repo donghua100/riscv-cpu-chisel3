@@ -1,0 +1,7 @@
+/.bloop
+/.metals
+/build
+/out
+/ref
+/test_run_dir
+/vsrc
