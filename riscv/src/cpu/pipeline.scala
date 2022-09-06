@@ -51,7 +51,6 @@ class EXMEM_REG(xlen:Int) extends Bundle {
 
   val dst       = UInt(5.W)
   val pc        = UInt(xlen.W)
-  val npc       = UInt(xlen.W)
   val ALU_out   = UInt(xlen.W)
   val rdata2    = UInt(xlen.W)
 
@@ -77,7 +76,7 @@ class top extends Module {
   val immgen  = Module(new ImmGen)
   val alu     = Module(new Alu)
   val br      = Module(new Brcond)
-  val dmem     = Module(new Memory)
+  val dmem    = Module(new Memory)
 
   val ifid_reg = RegInit(
     (new IFID_REG(64)).Lit(
@@ -111,7 +110,6 @@ class top extends Module {
       _.MWen      -> MemXXX,
       _.WB_sel    -> WB_XXX,
       _.dst       -> 0.U,
-      _.npc       -> 0.U,
       _.pc        -> 0.U,
       _.ALU_out   -> 0.U,
       _.rdata2    -> 0.U
@@ -131,7 +129,8 @@ class top extends Module {
 
 
   
-  val pc = RegInit(0x80000000L.U(64.W))
+  // val pc = RegInit(0x80000000L.U(64.W))
+  val pc = RegInit(0.U(64.W))
 
   // load mem
   // loadmem(imem)
@@ -160,7 +159,6 @@ class top extends Module {
       )
     )
   idex_reg.dst      := id.io.rd
-  idex_reg.pc       := ifid_reg.pc
   idex_reg.A_sel    := ctrl.io.A_sel
   idex_reg.B_sel    := ctrl.io.B_sel
   idex_reg.ALU_op   := ctrl.io.alu_op
@@ -191,13 +189,13 @@ class top extends Module {
   exmem_reg.rdata2  := idex_reg.rdata2
   val dnpc          = idex_reg.pc + idex_reg.Imm
   val pc4           = idex_reg.pc + 4.U
-  pc                := Mux(br.io.taken,dnpc,pc4)
+  pc                := Mux(br.io.taken, dnpc, pc4)
   
   // mem
-  dmem.io.wen        := exmem_reg.MWen
-  dmem.io.ren        := exmem_reg.MRen
-  dmem.io.addr       := exmem_reg.ALU_out
-  dmem.io.wdata      := exmem_reg.rdata2
+  dmem.io.wen       := exmem_reg.MWen
+  dmem.io.ren       := exmem_reg.MRen
+  dmem.io.addr      := exmem_reg.ALU_out
+  dmem.io.wdata     := exmem_reg.rdata2
   memwb_reg.Wen     := exmem_reg.Wen
   memwb_reg.dst     := exmem_reg.dst
   memwb_reg.ALU_out := exmem_reg.ALU_out
@@ -209,8 +207,4 @@ class top extends Module {
   rf.io.wen         := memwb_reg.Wen
   rf.io.dest        := memwb_reg.dst
   rf.io.wdata       := Mux(memwb_reg.WB_sel===WB_ALU, memwb_reg.ALU_out, memwb_reg.mdata)
-
-
-
-
 }
