@@ -5,15 +5,19 @@ import isa._
 import isa.ControlSels._
 import chisel3.experimental.BundleLiterals._
 
+// class DataPathIO extends Bundle { 
+//   val inst = Input(UInt(32.W))
+//   val rdata = Input(UInt(64.W))
+//   val wen = Output(Bool())
+//   val ren = Output(Bool())
+//   val addr = Output(UInt(64.W))
+//   val wdata = Output(UInt(64.W))
+//   val pc = Output(UInt(64.W))
+//
+// }
 
 class PipeLineDataPathIO extends Bundle {
-  val inst = Input(UInt(32.W))
-  val rdata = Input(UInt(64.W))
-  val wen = Output(Bool())
-  val ren = Output(Bool())
-  val addr = Output(UInt(64.W))
-  val wdata = Output(UInt(64.W))
-  val pc = Output(UInt(64.W))
+  val pc = Input(UInt(64.W))
 }
 
 class IFID_REG(xlen: Int) extends Bundle {
@@ -64,7 +68,7 @@ class MEMWB_REG(xlen:Int) extends Bundle {
   
 class top extends Module {
   val io      = IO(new PipeLineDataPathIO)
-  // val imem    = Module(new Memory)
+  val imem    = Module(new Memory)
   // val ifu     = Module(new IFU)
   val id      = Module(new IDU)
   val rf      = Module(new RegisterFile)
@@ -72,7 +76,7 @@ class top extends Module {
   val immgen  = Module(new ImmGen)
   val alu     = Module(new Alu)
   val br      = Module(new Brcond)
-  // val dmem    = Module(new Memory)
+  val dmem    = Module(new Memory)
 
   val ifid_reg = RegInit(
     (new IFID_REG(64)).Lit(
@@ -125,12 +129,18 @@ class top extends Module {
 
 
   
-  val pc = RegInit(0x80000000L.U(64.W))
+  // val pc = RegInit(0x80000000L.U(64.W))
+  val pc = RegInit(0.U(64.W))
 
+  // load mem
+  // loadmem(imem)
+  imem.io.ren := true.B
+  imem.io.addr := pc
+  imem.io.wen  := false.B
+  imem.io.wdata := 0.U
   // if
-  ifid_reg.inst       := io.inst
+  ifid_reg.inst       := imem.io.rdata
   ifid_reg.pc         := pc
-  val pc4             = pc + 4.U
 
   // id
   id.io.inst        := ifid_reg.inst
@@ -178,18 +188,18 @@ class top extends Module {
   exmem_reg.ALU_out := alu.io.out
   exmem_reg.rdata2  := idex_reg.rdata2
   val dnpc          = idex_reg.pc + idex_reg.Imm
+  val pc4           = idex_reg.pc + 4.U
   pc                := Mux(br.io.taken, dnpc, pc4)
-  io.pc             := pc
   
   // mem
-  io.wen       := exmem_reg.MWen
-  io.ren       := exmem_reg.MRen
-  io.addr      := exmem_reg.ALU_out
-  io.wdata     := exmem_reg.rdata2
+  dmem.io.wen       := exmem_reg.MWen
+  dmem.io.ren       := exmem_reg.MRen
+  dmem.io.addr      := exmem_reg.ALU_out
+  dmem.io.wdata     := exmem_reg.rdata2
   memwb_reg.Wen     := exmem_reg.Wen
   memwb_reg.dst     := exmem_reg.dst
   memwb_reg.ALU_out := exmem_reg.ALU_out
-  memwb_reg.mdata   := io.rdata
+  memwb_reg.mdata   := dmem.io.rdata
   memwb_reg.pc      := exmem_reg.pc
   memwb_reg.WB_sel  := exmem_reg.WB_sel
 

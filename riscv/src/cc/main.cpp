@@ -60,11 +60,11 @@ int main(){
 	memcpy(guest_to_host(MBASE), img, sizeof(img));
 	sim_init();
 	reset(10);
-	int n = 2;
+	int n = 7;
 	while(n>0){
 		top->io_inst = pmem_read(top->io_pc,4);
-		step_dump_wave();
 		single_cycle();
+		step_dump_wave();
 		n--;
 	}
 	step_dump_wave();
