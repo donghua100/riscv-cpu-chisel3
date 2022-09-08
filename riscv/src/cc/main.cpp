@@ -65,6 +65,10 @@ int main(){
 		top->io_inst = pmem_read(top->io_pc,4);
 		single_cycle();
 		step_dump_wave();
+		// top->reset = 1; top->eval();
+		// tfp->dump(contextp->time());
+		// top->reset = 0; top->eval();
+		// contextp->timeInc(1);
 		n--;
 	}
 	step_dump_wave();
