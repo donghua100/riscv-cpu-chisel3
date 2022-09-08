@@ -4,6 +4,7 @@ import chisel3.util.MuxLookup
 import isa._
 import isa.ControlSels._
 import chisel3.experimental.BundleLiterals._
+import chisel3.util.MuxCase
 
 
 class PipeLineDataPathIO extends Bundle {
@@ -32,6 +33,8 @@ class IDEX_REG(xlen: Int) extends Bundle {
   val MWen      =   UInt(1.W)
   val MRen      =   UInt(1.W)
   // data
+  val rs1       =   UInt(5.W)
+  val rs2       =   UInt(5.W)
   val dst       =   UInt(5.W)
   val Imm       =   UInt(xlen.W)
   val rdata1    =   UInt(xlen.W)
@@ -72,6 +75,8 @@ class top extends Module {
   val immgen  = Module(new ImmGen)
   val alu     = Module(new Alu)
   val br      = Module(new Brcond)
+  val fwd     = Module(new Forward)
+  val hzd     = Module(new Hazard)
   // val dmem    = Module(new Memory)
 
   val ifid_reg = RegInit(
@@ -91,6 +96,8 @@ class top extends Module {
       _.Wen       -> RegXXX,
       _.MRen      -> MemXX,
       _.MWen      -> MemXXX,
+      _.rs1       -> 0.U,
+      _.rs2       -> 0.U,
       _.dst       -> 0.U,
       _.Imm       -> 0.U,
       _.rdata1    -> 0.U,
@@ -161,11 +168,45 @@ class top extends Module {
   idex_reg.rdata1   := rf.io.rdata1
   idex_reg.rdata2   := rf.io.rdata2
   idex_reg.pc       := ifid_reg.pc
-  
+
+  // data forwarding
+  fwd.io.idex_rs1   := idex_reg.rs1
+  fwd.io.idex_rs2   := idex_reg.rs2
+  fwd.io.exmem_rd   := exmem_reg.dst
+  fwd.io.exmem_wen  := exmem_reg.Wen
+  fwd.io.memwb_rd   := memwb_reg.dst
+  fwd.io.memwb_wen  := memwb_reg.Wen
+
+
+  // hazard
+  hzd.io.rs1        := id.io.rs1
+  hzd.io.rs2        := id.io.rs2
+  hzd.io.idex_mren  := idex_reg.MRen
+  hzd.io.idex_rd    := idex_reg.dst
+
+  when (hzd.io.stall) {
+    // stall
+    idex_reg.A_sel      := A_XXX
+    idex_reg.B_sel      := B_XXX
+    idex_reg.ALU_op     := ALU_XXX
+    idex_reg.BR_sel     := BR_XXX
+    idex_reg.Wen        := RegWen
+    idex_reg.MRen       := MemXX
+    idex_reg.MWen       := MemXXX
+  }
+
   // ex
   alu.io.alu_op     := idex_reg.ALU_op
-  alu.io.A          := Mux(idex_reg.A_sel === A_RS1, idex_reg.rdata1, idex_reg.pc)
-  alu.io.B          := Mux(idex_reg.B_sel === B_RS2, idex_reg.rdata2, idex_reg.Imm)
+  import isa.ForwardSel._
+  val wbdata        = Mux(memwb_reg.WB_sel===WB_ALU, memwb_reg.ALU_out, memwb_reg.mdata)
+  val rdata1        = MuxLookup(fwd.io.forwardA,
+    idex_reg.rdata1,
+    IndexedSeq(F_ALU -> exmem_reg.ALU_out, F_MEM -> wbdata))
+  val rdata2        = MuxLookup(fwd.io.forwardB,
+    idex_reg.rdata2,
+    IndexedSeq(F_ALU -> exmem_reg.ALU_out, F_MEM -> wbdata))
+  alu.io.A          := Mux(idex_reg.A_sel === A_RS1, rdata1, idex_reg.pc)
+  alu.io.B          := Mux(idex_reg.B_sel === B_RS2, rdata2, idex_reg.Imm)
   br.io.a           := idex_reg.rdata1
   br.io.b           := idex_reg.rdata2
   br.io.br_sel      := idex_reg.BR_sel
@@ -196,5 +237,6 @@ class top extends Module {
   // wb
   rf.io.wen         := memwb_reg.Wen
   rf.io.dest        := memwb_reg.dst
-  rf.io.wdata       := Mux(memwb_reg.WB_sel===WB_ALU, memwb_reg.ALU_out, memwb_reg.mdata)
+  rf.io.wdata       := wbdata
 }
+
