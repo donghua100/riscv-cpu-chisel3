@@ -24,5 +24,5 @@ To generate Verilog:
 make verilog
 ```
 ## DataPath
-[!Datapath](img/datapath.png "DataPath")
+![Datapath](img/datapath.png "DataPath")
 
