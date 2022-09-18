@@ -1,24 +1,18 @@
-Chisel Project Template
+# RISCV64 CPU
+We choose chisel3 to implement
+RISCV64  5-stage Pipeline CPU desgined using chisel3.Now it's just a framework.The memory is simluated by cpp code to make tesing easily.
+## Feature
+- Pipeline
+- Data Hazard
+
 =======================
 
-Another version of the [Chisel template](https://github.com/ucb-bar/chisel-template) supporting mill.
-mill is another Scala/Java build tool without obscure DSL like SBT. It is much faster than SBT.
-
-Contents at a glance:
-
-* `.gitignore` - helps Git ignore junk like generated files, build products, and temporary files.
-* `build.sc` - instructs mill to build the Chisel project
-* `Makefile` - rules to call mill
-* `playground/src/GCD.scala` - GCD source file
-* `playground/src/DecoupledGCD.scala` - another GCD source file
-* `playground/src/Elaborate.scala` - wrapper file to call chisel command with the GCD module
-* `playground/test/src/GCDSpec.scala` - GCD tester
-
-Feel free to rename or delete files under `playground/` or use them as a reference/template.
 
 ## Getting Started
 
 First, install mill by referring to the documentation [here](https://com-lihaoyi.github.io/mill).
+Then, install verilator by referring to the documentation [here](https://github.com/verilator/verilator).
+To watch vcd files,gtkwave is nedded.
 
 To run all tests in this design (recommended for test-driven development):
 ```bash
@@ -29,4 +23,6 @@ To generate Verilog:
 ```bash
 make verilog
 ```
-# riscv-cpu-chisel3
+## DataPath
+[!Datapath](img/datapath.png "DataPath")
+
